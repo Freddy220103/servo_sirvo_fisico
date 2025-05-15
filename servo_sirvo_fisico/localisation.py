@@ -13,8 +13,8 @@ class Localisation(Node):
         super().__init__('localisation') 
         
         # Suscriptores
-        self.wr_sub = self.create_subscription(Float32, 'wr', self.wr_callback, qos.qos_profile_sensor_data) 
-        self.wl_sub = self.create_subscription(Float32, 'wl', self.wl_callback, qos.qos_profile_sensor_data) 
+        self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, qos.qos_profile_sensor_data) 
+        self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, qos.qos_profile_sensor_data) 
         self.tf_broadcaster = TransformBroadcaster(self)
 
         # Publicador

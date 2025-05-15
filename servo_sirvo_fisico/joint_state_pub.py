@@ -12,8 +12,8 @@ class JointStatePublisher(Node):
         super().__init__('joint_state_publisher')
         
         # velocidades de las ruedas
-        self.wr_sub = self.create_subscription(Float32, 'wr', self.wr_callback, 10)
-        self.wl_sub = self.create_subscription(Float32, 'wl', self.wl_callback, 10)
+        self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, 10)
+        self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, 10)
         
         # Publisher JointState
         self.joint_pub = self.create_publisher(JointState, 'joint_states', 10)

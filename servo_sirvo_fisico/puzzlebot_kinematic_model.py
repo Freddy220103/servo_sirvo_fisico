@@ -20,8 +20,8 @@ class KinematicModelNode(Node):
         self.cmd_vel_subscriber = self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_callback, 10) 
         # publisher 
 
-        self.wr_pub = self.create_publisher(Float32,'wr',qos.qos_profile_sensor_data) 
-        self.wl_pub = self.create_publisher(Float32,'wl',qos.qos_profile_sensor_data) #  
+        self.wr_pub = self.create_publisher(Float32,'VelocityEncR',qos.qos_profile_sensor_data) 
+        self.wl_pub = self.create_publisher(Float32,'VelocityEncL',qos.qos_profile_sensor_data) #  
 
         self.r=0.05 #radio llanta
         self.L = 0.18 #separación llantas        
