@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float32
 import math
+from rclpy import qos 
 
 
 # Publica transformadas de mi robot
@@ -12,8 +13,8 @@ class JointStatePublisher(Node):
         super().__init__('joint_state_publisher')
         
         # velocidades de las ruedas
-        self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, 10)
-        self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, 10)
+        self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, qos.qos_profile_sensor_data)
+        self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, qos.qos_profile_sensor_data)
         
         # Publisher JointState
         self.joint_pub = self.create_publisher(JointState, 'joint_states', 10)

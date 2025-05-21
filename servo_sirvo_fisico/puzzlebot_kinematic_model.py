@@ -24,7 +24,7 @@ class KinematicModelNode(Node):
         self.wl_pub = self.create_publisher(Float32,'VelocityEncL',qos.qos_profile_sensor_data) #  
 
         self.r=0.05 #radio llanta
-        self.L = 0.18 #separación llantas        
+        self.L = 0.19 #separación llantas        
 
         ############ Variables ############### 
 

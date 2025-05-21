@@ -26,7 +26,7 @@ def generate_launch_description():
             'name': '',
             'type': 'puzzlebot_jetson_lidar_ed',
             'x': 0.0, 'y': 0.0, 'yaw': 0.0,
-            'lidar_frame': 'laser_frame',
+            'lidar_frame': 'laser',
             'camera_frame': 'camera_link_optical',
             'tof_frame': 'tof_link'
         }
@@ -44,7 +44,7 @@ def generate_launch_description():
         x = str(robot.get('x', 0.0))
         y = str(robot.get('y', 0.0))
         yaw = str(robot.get('yaw', 0.0))
-        lidar_frame = robot.get('lidar_frame', 'laser_frame')
+        lidar_frame = robot.get('lidar_frame', 'laser')
         camera_frame = robot.get('camera_frame', 'camera_link_optical')
         tof_frame = robot.get('tof_frame', 'tof_link')
         prefix = f'{robot_name}/' if robot_name != '' else ''
@@ -97,7 +97,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     # Cambiar la ruta de mapa y param según sea necesario en tu sistema
     # Asegúrate de tener el archivo map.yaml en la ruta correcta y param.yaml en la carpeta param
-    map_dir = os.path.join('/home/alfredog/ros2_ws/src/servo_sirvo_fisico/map_actualizado.yaml')
+    map_dir = os.path.join('/home/alfredog/ros2_ws/src/servo_sirvo_fisico/mapa_new2.yaml')
     param_file = os.path.join('/home/alfredog/ros2_ws/src/servo_sirvo_fisico/param/puzzlebot.yaml')  # asegúrate de tener ese archivo
 
     nav2_launch = IncludeLaunchDescription(
@@ -118,7 +118,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1'),
-        SetEnvironmentVariable('USE_SIM_TIME', 'True'),
+        SetEnvironmentVariable('USE_SIM_TIME', 'False'),
         nav2_launch,
         #gazebo_launch,
         *robot_launches,
