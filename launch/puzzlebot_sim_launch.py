@@ -34,12 +34,6 @@ def generate_launch_description():
     
     
 
-    df_1 = Node(
-        package='servo_sirvo_fisico',
-        executable='dynamic_tf',
-        output='screen',
-        parameters=[use_sim_time_param]
-    )
 
     localisation = Node(
         package='servo_sirvo_fisico',
@@ -74,19 +68,12 @@ def generate_launch_description():
         parameters=[use_sim_time_param]
     )
 
-    pruebita = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        arguments=['0', '0', '0', '0', '0', '0', 'world', 'map'],
-        output='screen',
-        parameters=[use_sim_time_param]
-    )
+    
 
 
     return LaunchDescription([
         # pruebita, 
         static_tf_1,
-        #df_1,
         my_rqt_node,
         localisation,
         kinematic,
