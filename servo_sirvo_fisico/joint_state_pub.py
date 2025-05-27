@@ -69,33 +69,33 @@ class JointStatePublisher(Node):
 
         ###############LLANTAS##############################
         
-        # dt = (self.get_clock().now() - self.prev_time).nanoseconds / 1e9
+        dt = (self.get_clock().now() - self.prev_time).nanoseconds / 1e9
 
 
 
-        # self.left_wheel_angle += self.wl * dt
-        # self.right_wheel_angle += self.wr * dt
+        self.left_wheel_angle += self.wl * dt
+        self.right_wheel_angle += self.wr * dt
         
-        # # Normalizar angles
-        # self.left_wheel_angle = math.atan2(math.sin(self.left_wheel_angle), math.cos(self.left_wheel_angle))
-        # self.right_wheel_angle = math.atan2(math.sin(self.right_wheel_angle), math.cos(self.right_wheel_angle))
-        # # Update the wheels angles based on the wheels speeds and dt
+        # Normalizar angles
+        self.left_wheel_angle = math.atan2(math.sin(self.left_wheel_angle), math.cos(self.left_wheel_angle))
+        self.right_wheel_angle = math.atan2(math.sin(self.right_wheel_angle), math.cos(self.right_wheel_angle))
+        # Update the wheels angles based on the wheels speeds and dt
        
 
-        # # Create a JointState message for the wheels angles
-        # joint_state_msg = JointState()
-        # joint_state_msg.header.stamp = self.get_clock().now().to_msg()
-        # joint_state_msg.header.frame_id = 'base_footprint'
-        # joint_state_msg.name = ['wheel_right_joint', 'wheel_left_joint']
-        # joint_state_msg.position = [self.left_wheel_angle, self.right_wheel_angle]
-        # joint_state_msg.velocity = [0.0, 0.0]
-        # joint_state_msg.effort = [0.0, 0.0]
+        # Create a JointState message for the wheels angles
+        joint_state_msg = JointState()
+        joint_state_msg.header.stamp = self.get_clock().now().to_msg()
+        joint_state_msg.header.frame_id = 'base_footprint'
+        joint_state_msg.name = ['wheel_right_joint', 'wheel_left_joint']
+        joint_state_msg.position = [self.left_wheel_angle, self.right_wheel_angle]
+        joint_state_msg.velocity = [0.0, 0.0]
+        joint_state_msg.effort = [0.0, 0.0]
 
-        # # Publish the joint state
-        # self.joint_state_publisher.publish(joint_state_msg)   
+        # Publish the joint state
+        self.joint_state_publisher.publish(joint_state_msg)   
 
-        # # Last time update
-        # self.prev_time = self.get_clock().now()
+        # Last time update
+        self.prev_time = self.get_clock().now()
 
       
  

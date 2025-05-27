@@ -5,7 +5,7 @@
 
   <xacro:macro name="rpi_lidar_sensor" params="
     prefix:=''
-    lidar_frame:='laser'
+    lidar_frame:='laser_frame'
     parent:='base_link'
     mesh_file:='file://$(find servo_sirvo_fisico)/meshes/RPLidar.stl'
 
@@ -53,7 +53,7 @@
     ray_count:='360'
     min_angle:='0.0'
     max_angle:='6.283185'
-    min_range:='0.15'
+    min_range:='0.05'
     max_range:='12.0'
     range_resolution:='0.017'
     topic_name:='scan'
@@ -84,7 +84,7 @@
         </inertial>
     </link>
 
-    <link name="${prefix}laser">
+    <link name="${prefix}laser_frame">
 
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -117,7 +117,7 @@
 
     <joint name="${prefix}lidar_joint" type="fixed">
         <parent link="${prefix}lidar_base_link"/>
-        <child link="${prefix}laser"/>
+        <child link="${prefix}laser_frame"/>
         <origin xyz="${lidar_pos_x} ${lidar_pos_y} ${lidar_pos_z}" rpy="${lidar_pos_r} ${lidar_pos_p} ${lidar_pos_w}"/>
     </joint>
 
@@ -129,7 +129,7 @@
     <preserveFixedJoint>true</preserveFixedJoint>
     </gazebo>-->
 
-    <gazebo reference="${prefix}laser">
+    <gazebo reference="${prefix}laser_frame">
         <sensor name="${prefix}lidar_sensor" type="gpu_lidar">
             <topic>${prefix}${topic_name}</topic>
             <gz_frame_id>${prefix}${lidar_frame}</gz_frame_id>

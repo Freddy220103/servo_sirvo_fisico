@@ -74,7 +74,7 @@ def generate_launch_description():
     return LaunchDescription([
         # pruebita, 
         static_tf_1,
-        my_rqt_node,
+        # my_rqt_node,
         localisation,
         kinematic,
         joint_pub,

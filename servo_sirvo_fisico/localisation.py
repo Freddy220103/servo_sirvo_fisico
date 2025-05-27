@@ -8,6 +8,8 @@ import transforms3d
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 
+from geometry_msgs.msg import PoseStamped
+
 class Localisation(Node): 
     def __init__(self): 
         super().__init__('localisation') 
@@ -15,6 +17,7 @@ class Localisation(Node):
         # Suscriptores
         self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, qos.qos_profile_sensor_data) 
         self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, qos.qos_profile_sensor_data) 
+        self.meas_sub = self.create_subscription(PoseStamped,'aruco_pose',self.aruco_callback,qos.qos_profile_sensor_data)
         self.tf_broadcaster = TransformBroadcaster(self)
 
         # Publicador
@@ -49,8 +52,13 @@ class Localisation(Node):
             [-0.00163, 0.003897, 0.011256]
         ])
 
+
+        self.RCAM = np.diag([0.0, 0.0])
+
+
+
         # Timer
-        timer_period = 0.04 
+        timer_period = 0.02 
         self.timer = self.create_timer(timer_period, self.timer_callback) 
 
     def wr_callback(self, msg): 
@@ -65,11 +73,72 @@ class Localisation(Node):
         odom_msg = self.fill_odom_message(self.x, self.y, self.theta) 
         self.odom_pub.publish(odom_msg) 
 
+    def aruco_callback(self,msg):
+      
+        x_rel = msg.pose.position.x
+        y_rel = msg.pose.position.y
+        aruco_id = 0
+
+        # Tabla con las posiciones fijas de los Arucos
+        if aruco_id in self.aruco_map:
+            landmark_x, landmark_y = self.aruco_map[aruco_id]
+            self.ekf_correction_with_landmark(x_rel, y_rel, landmark_x, landmark_y)
 
     def get_robot_vel(self, wr, wl): 
         v = self.r * (wr + wl) / 2.0 
         w = self.r * (wr - wl) / self.L 
         return v, w 
+    
+
+    def ekf_correction_with_landmark(self, x_rel, y_rel, landmark_x, landmark_y):
+        # 1. Convertir posición relativa a forma polar (medición real)
+        rho_meas = np.sqrt(x_rel**2 + y_rel**2)
+        alpha_meas = np.arctan2(y_rel, x_rel)
+
+        z = np.array([rho_meas, alpha_meas])  # Medición real (sensor)
+
+
+        # 3. Calcular medición esperada desde el estado actual
+        dx = landmark_x - self.x
+        dy = landmark_y - self.y
+        p = dx**2 + dy**2
+        sqrt_p = np.sqrt(p)
+
+        z_hat = np.array([
+            sqrt_p,
+            np.arctan2(dy, dx) - self.theta
+        ])
+
+        # 4. Calcular innovación (error de medición)
+        y_k = z - z_hat
+        y_k[1] = np.arctan2(np.sin(y_k[1]), np.cos(y_k[1]))  # Normalizar ángulo
+
+        # 5. Calcular Jacobiano G_k
+        G = np.array([
+            [-dx / sqrt_p, -dy / sqrt_p, 0],
+            [dy / p,       -dx / p,      -1]
+        ])
+
+
+        # 7. Kalman gain
+        S = G @ self.Sigma @ G.T + self.RCAM
+        K = self.Sigma @ G.T @ np.linalg.inv(S)
+
+        # 8. Actualizar estado
+        delta = K @ y_k
+        self.x += delta[0]
+        self.y += delta[1]
+        self.theta += delta[2]
+        self.theta = np.arctan2(np.sin(self.theta), np.cos(self.theta))  # Normalizar ángulo
+
+        # 9. Actualizar matriz de covarianza
+        I = np.eye(3)
+        self.Sigma = (I - K @ G) @ self.Sigma
+
+
+
+
+        
 
     def update_pose(self, v, w): 
         dt = (self.get_clock().now().nanoseconds - self.prev_time_ns) * 1e-9  
@@ -92,6 +161,8 @@ class Localisation(Node):
             [0.0, 0.0, 1.0]
         ])
         self.Sigma = H @ self.Sigma @ H.T + self.Q
+
+
 
     def fill_odom_message(self, x, y, yaw): 
         odom_msg = Odometry()  

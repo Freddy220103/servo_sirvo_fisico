@@ -36,7 +36,7 @@ class PointStabilisationNode(Node):
         self.theta = 0.0
         
         # Timer 
-        self.timer = self.create_timer(0.04, self.control_loop)
+        self.timer = self.create_timer(0.02, self.control_loop)
 
     def goal_cb(self,msg):
          self.goal_x = msg.position.x 
@@ -79,8 +79,8 @@ class PointStabilisationNode(Node):
         w = self.k_alpha * alpha + self.k_beta * beta
         
         # Limitar velocidades
-        max_linear = 0.3
-        max_angular = 1.0
+        max_linear = 0.15
+        max_angular = 0.5
         v = max(min(v, max_linear), -max_linear)
         w = max(min(w, max_angular), -max_angular)
         
