@@ -120,6 +120,6 @@ def generate_launch_description():
         SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1'),
         SetEnvironmentVariable('USE_SIM_TIME', 'False'),
         nav2_launch,
-        #gazebo_launch,
+        #robot_launch,
         *robot_launches,
     ])

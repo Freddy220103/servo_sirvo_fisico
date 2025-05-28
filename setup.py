@@ -54,6 +54,7 @@ setup(
             'static_tf = servo_sirvo_fisico.static_tf:main',
             'uncertainty_ellipse = servo_sirvo_fisico.uncertainty_ellipse:main',
             'puzzlebot_kinematic_model= servo_sirvo_fisico.puzzlebot_kinematic_model:main',
+            'aruco_debug= servo_sirvo_fisico.aruco_debug:main',
             
             
         ],

@@ -9,8 +9,9 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
 
-    robot_xacro_filename = 'puzzlebot.xacro'
     use_sim_time_param = {'use_sim_time': False}
+
+    robot_xacro_filename = 'puzzlebot.xacro'
 
     package_share_dir = get_package_share_directory('servo_sirvo_fisico')
 
@@ -72,12 +73,12 @@ def generate_launch_description():
 
 
     return LaunchDescription([
-        # pruebita, 
+   
         static_tf_1,
-        # my_rqt_node,
+        #my_rqt_node,
         localisation,
         kinematic,
         joint_pub,
-        robot_state_publisher_node,
+        robot_state_publisher_node,#comentar y llamar launch gazebo en caso de simulación
         
     ])

@@ -7,6 +7,7 @@ import numpy as np
 import transforms3d 
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
+from aruco_msgs.msg import MarkerArray
 
 from geometry_msgs.msg import PoseStamped
 
@@ -17,14 +18,14 @@ class Localisation(Node):
         # Suscriptores
         self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, qos.qos_profile_sensor_data) 
         self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, qos.qos_profile_sensor_data) 
-        self.meas_sub = self.create_subscription(PoseStamped,'aruco_pose',self.aruco_callback,qos.qos_profile_sensor_data)
+        self.meas_sub = self.create_subscription(MarkerArray,'marker_publisher/markers',self.aruco_callback,qos.qos_profile_sensor_data)
+
         self.tf_broadcaster = TransformBroadcaster(self)
 
         # Publicador
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)      
 
         
-
         # Parámetros físicos
         self.r = 0.05  # radio ruedas (m)
         self.L = 0.18  # separación entre ruedas (m)
@@ -54,6 +55,11 @@ class Localisation(Node):
 
 
         self.RCAM = np.diag([0.0, 0.0])
+        self.aruco_map = {
+            0: (2.0, 1.0),   # ejemplo: Aruco ID 0 está en (2.0 m, 1.0 m)
+            702: (1.0, 3.0),
+            701: (0.0, 0.0)    # agrega los que tengas
+        }
 
 
 
@@ -74,15 +80,21 @@ class Localisation(Node):
         self.odom_pub.publish(odom_msg) 
 
     def aruco_callback(self,msg):
-      
-        x_rel = msg.pose.position.x
-        y_rel = msg.pose.position.y
-        aruco_id = 0
+        self.get_logger().info("wasaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        for marker in msg.markers:
+            aruco_id = marker.id
+            x_rel = marker.pose.pose.position.x
+            z_rel = marker.pose.pose.position.z 
+            self.get_logger().info("X aruco: ", x_rel)
+            self.get_logger().info("Z aruco: ", z_rel)
+            
 
-        # Tabla con las posiciones fijas de los Arucos
         if aruco_id in self.aruco_map:
             landmark_x, landmark_y = self.aruco_map[aruco_id]
-            self.ekf_correction_with_landmark(x_rel, y_rel, landmark_x, landmark_y)
+            self.ekf_correction_with_landmark(x_rel, z_rel, landmark_x, landmark_y)
+
+        
+            
 
     def get_robot_vel(self, wr, wl): 
         v = self.r * (wr + wl) / 2.0 
@@ -90,10 +102,10 @@ class Localisation(Node):
         return v, w 
     
 
-    def ekf_correction_with_landmark(self, x_rel, y_rel, landmark_x, landmark_y):
+    def ekf_correction_with_landmark(self, x_rel, z_rel, landmark_x, landmark_y):
         # 1. Convertir posición relativa a forma polar (medición real)
-        rho_meas = np.sqrt(x_rel**2 + y_rel**2)
-        alpha_meas = np.arctan2(y_rel, x_rel)
+        rho_meas = np.sqrt(x_rel**2 + z_rel**2)
+        alpha_meas = np.arctan2(z_rel, x_rel)
 
         z = np.array([rho_meas, alpha_meas])  # Medición real (sensor)
 
