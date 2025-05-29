@@ -61,7 +61,7 @@ def generate_launch_description():
         parameters=[use_sim_time_param]
     )
 
-    static_tf_1 = Node(
+    static_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
@@ -74,11 +74,11 @@ def generate_launch_description():
 
     return LaunchDescription([
    
-        static_tf_1,
-        #my_rqt_node,
+        static_tf,
+        my_rqt_node,
         localisation,
         kinematic,
-        joint_pub,
+
         robot_state_publisher_node,#comentar y llamar launch gazebo en caso de simulación
         
     ])

@@ -8,8 +8,8 @@ import transforms3d
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from aruco_msgs.msg import MarkerArray
-
-from geometry_msgs.msg import PoseStamped
+import math
+import time
 
 class Localisation(Node): 
     def __init__(self): 
@@ -18,14 +18,13 @@ class Localisation(Node):
         # Suscriptores
         self.wr_sub = self.create_subscription(Float32, 'VelocityEncR', self.wr_callback, qos.qos_profile_sensor_data) 
         self.wl_sub = self.create_subscription(Float32, 'VelocityEncL', self.wl_callback, qos.qos_profile_sensor_data) 
-        self.meas_sub = self.create_subscription(MarkerArray,'marker_publisher/markers',self.aruco_callback,qos.qos_profile_sensor_data)
+        self.meas_sub = self.create_subscription(MarkerArray, 'marker_publisher/markers', self.aruco_callback, qos.qos_profile_sensor_data)
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
         # Publicador
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)      
 
-        
         # Parámetros físicos
         self.r = 0.05  # radio ruedas (m)
         self.L = 0.18  # separación entre ruedas (m)
@@ -53,15 +52,19 @@ class Localisation(Node):
             [-0.00163, 0.003897, 0.011256]
         ])
 
+        # Matriz de covarianza de la medición (ArUco)
+        self.RCAM = np.diag([0.01, 0.05])  # [variance in range, variance in bearing (rad)]
 
-        self.RCAM = np.diag([0.0, 0.0])
+        # Mapa de ArUcos (ID: (x, y))
         self.aruco_map = {
             0: (2.0, 1.0),   # ejemplo: Aruco ID 0 está en (2.0 m, 1.0 m)
             702: (1.0, 3.0),
             701: (0.0, 0.0)    # agrega los que tengas
         }
 
-
+        # Para throttling de ArUco
+        self.last_aruco_time = time.time()
+        self.min_aruco_interval = 1.0  # seconds
 
         # Timer
         timer_period = 0.02 
@@ -79,22 +82,48 @@ class Localisation(Node):
         odom_msg = self.fill_odom_message(self.x, self.y, self.theta) 
         self.odom_pub.publish(odom_msg) 
 
-    def aruco_callback(self,msg):
-        self.get_logger().info("wasaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        # Also publish the transform from odom to base_footprint
+        self.publish_tf()
+
+    def publish_tf(self):
+        tf_msg = TransformStamped()
+        tf_msg.header.stamp = self.get_clock().now().to_msg()
+        tf_msg.header.frame_id = 'odom'
+        tf_msg.child_frame_id = 'base_footprint'
+        tf_msg.transform.translation.x = self.x
+        tf_msg.transform.translation.y = self.y
+        tf_msg.transform.translation.z = 0.0
+        quat = transforms3d.euler.euler2quat(0, 0, self.theta)
+        tf_msg.transform.rotation.x = quat[1]
+        tf_msg.transform.rotation.y = quat[2]
+        tf_msg.transform.rotation.z = quat[3]
+        tf_msg.transform.rotation.w = quat[0]
+        self.tf_broadcaster.sendTransform(tf_msg)
+
+    def aruco_callback(self, msg):
+        current_time = time.time()
+        # Throttle ArUco processing to avoid flooding
+        if current_time - self.last_aruco_time < self.min_aruco_interval:
+            return
+        self.last_aruco_time = current_time
+
         for marker in msg.markers:
             aruco_id = marker.id
-            x_rel = marker.pose.pose.position.x
-            z_rel = marker.pose.pose.position.z 
-            self.get_logger().info("X aruco: ", x_rel)
-            self.get_logger().info("Z aruco: ", z_rel)
-            
+            if aruco_id not in self.aruco_map:
+                self.get_logger().warn(f"ArUco ID {aruco_id} not in map. Skipping.")
+                continue
 
-        if aruco_id in self.aruco_map:
+            # Get relative position of the marker in the camera frame
+            x_rel = marker.pose.pose.position.x
+            z_rel = marker.pose.pose.position.z
+
+            # Validate measurement: reasonable range and non-NaN
+            if abs(x_rel) > 3.0 or abs(z_rel) > 3.0 or np.isnan(x_rel) or np.isnan(z_rel):
+                self.get_logger().warn(f"Invalid measurement for ArUco {aruco_id}: x_rel={x_rel}, z_rel={z_rel}")
+                continue
+
             landmark_x, landmark_y = self.aruco_map[aruco_id]
             self.ekf_correction_with_landmark(x_rel, z_rel, landmark_x, landmark_y)
-
-        
-            
 
     def get_robot_vel(self, wr, wl): 
         v = self.r * (wr + wl) / 2.0 
@@ -103,78 +132,98 @@ class Localisation(Node):
     
 
     def ekf_correction_with_landmark(self, x_rel, z_rel, landmark_x, landmark_y):
-        # 1. Convertir posición relativa a forma polar (medición real)
-        rho_meas = np.sqrt(x_rel**2 + z_rel**2)
-        alpha_meas = np.arctan2(z_rel, x_rel)
+        # 1. Convert relative position to polar coordinates (actual measurement)
+        rho_meas = math.sqrt(x_rel**2 + z_rel**2)
+        alpha_meas = math.atan2(z_rel, x_rel)
 
-        z = np.array([rho_meas, alpha_meas])  # Medición real (sensor)
+        # 2. Actual sensor measurement
+        z = np.array([rho_meas, alpha_meas])
 
-
-        # 3. Calcular medición esperada desde el estado actual
+        # 3. Calculate expected measurement from current state
         dx = landmark_x - self.x
         dy = landmark_y - self.y
         p = dx**2 + dy**2
-        sqrt_p = np.sqrt(p)
+        sqrt_p = math.sqrt(p)
+
+        # Avoid division by zero
+        if sqrt_p < 0.001:
+            self.get_logger().warn("Landmark too close! Skipping correction.")
+            return
 
         z_hat = np.array([
             sqrt_p,
-            np.arctan2(dy, dx) - self.theta
+            math.atan2(dy, dx) - self.theta
         ])
 
-        # 4. Calcular innovación (error de medición)
-        y_k = z - z_hat
-        y_k[1] = np.arctan2(np.sin(y_k[1]), np.cos(y_k[1]))  # Normalizar ángulo
+        # 4. Normalize innovation angle
+        alpha_diff = z[1] - z_hat[1]
+        alpha_diff = math.atan2(math.sin(alpha_diff), math.cos(alpha_diff))
+        y_k = np.array([z[0] - z_hat[0], alpha_diff])
 
-        # 5. Calcular Jacobiano G_k
+        # 5. Calculate Jacobian G_k
         G = np.array([
             [-dx / sqrt_p, -dy / sqrt_p, 0],
             [dy / p,       -dx / p,      -1]
         ])
 
-
-        # 7. Kalman gain
+        # 6. Kalman gain
         S = G @ self.Sigma @ G.T + self.RCAM
-        K = self.Sigma @ G.T @ np.linalg.inv(S)
+        try:
+            S_inv = np.linalg.inv(S)
+        except np.linalg.LinAlgError:
+            self.get_logger().error("Singular matrix in Kalman gain calculation!")
+            return
 
-        # 8. Actualizar estado
+        K = self.Sigma @ G.T @ S_inv
+
+        # 7. Update state
         delta = K @ y_k
+        
+        # Check for invalid corrections
+        if np.any(np.isnan(delta)) or np.any(np.isinf(delta)):
+            self.get_logger().error("Invalid correction (NaN or Inf)! Skipping.")
+            return
+
         self.x += delta[0]
         self.y += delta[1]
         self.theta += delta[2]
-        self.theta = np.arctan2(np.sin(self.theta), np.cos(self.theta))  # Normalizar ángulo
+        self.theta = math.atan2(math.sin(self.theta), math.cos(self.theta))  # Normalize angle
 
-        # 9. Actualizar matriz de covarianza
+        # 8. Update covariance matrix
         I = np.eye(3)
         self.Sigma = (I - K @ G) @ self.Sigma
 
-
-
-
-        
+        # Debug output (throttled)
+        self.get_logger().info(
+            f"EKF Correction: Δx={delta[0]:.3f}, Δy={delta[1]:.3f}, Δθ={math.degrees(delta[2]):.1f}°"
+        )
 
     def update_pose(self, v, w): 
-        dt = (self.get_clock().now().nanoseconds - self.prev_time_ns) * 1e-9  
-        self.prev_time_ns = self.get_clock().now().nanoseconds  
+        current_time_ns = self.get_clock().now().nanoseconds
+        dt = (current_time_ns - self.prev_time_ns) * 1e-9  
+        self.prev_time_ns = current_time_ns
 
-        # Movimiento
-        dx = v * np.cos(self.theta) * dt
-        dy = v * np.sin(self.theta) * dt
+        # Skip invalid time intervals
+        if dt <= 0:
+            return
+
+        # Movement
+        dx = v * math.cos(self.theta) * dt
+        dy = v * math.sin(self.theta) * dt
         dtheta = w * dt
 
         self.x += dx
         self.y += dy
         self.theta += dtheta
-        self.theta = np.arctan2(np.sin(self.theta), np.cos(self.theta))  # Normalize angle
+        self.theta = math.atan2(math.sin(self.theta), math.cos(self.theta))  # Normalize angle
 
-        # Actualiza la matriz de covarianza (EKF Predict Step)
+        # Update covariance matrix (EKF Predict Step)
         H = np.array([
-            [1.0, 0.0, -v * dt * np.sin(self.theta)],
-            [0.0, 1.0,  v * dt * np.cos(self.theta)],
+            [1.0, 0.0, -v * dt * math.sin(self.theta)],
+            [0.0, 1.0,  v * dt * math.cos(self.theta)],
             [0.0, 0.0, 1.0]
         ])
         self.Sigma = H @ self.Sigma @ H.T + self.Q
-
-
 
     def fill_odom_message(self, x, y, yaw): 
         odom_msg = Odometry()  
@@ -192,7 +241,7 @@ class Localisation(Node):
         odom_msg.pose.pose.orientation.y = quat[2] 
         odom_msg.pose.pose.orientation.z = quat[3] 
         
-        # Asigna la covarianza al mensaje de odometría (solo para pose)
+        # Assign covariance to odometry message (pose only)
         cov = np.zeros((6, 6))
         cov[0, 0] = self.Sigma[0, 0]
         cov[0, 1] = self.Sigma[0, 1]
@@ -204,7 +253,6 @@ class Localisation(Node):
         cov[5, 1] = self.Sigma[2, 1]
         cov[5, 5] = self.Sigma[2, 2]
         odom_msg.pose.covariance = cov.flatten().tolist()
-
 
         return odom_msg 
 
