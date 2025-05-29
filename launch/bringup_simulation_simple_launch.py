@@ -14,24 +14,41 @@ def generate_launch_description():
     #                          SIMULATION CONFIGURATION
     # -----------------------------------------------------------------------------
 
-    
-    world = 'mundo1.world'
+    world = '/home/alfredog/ros2_ws/src/servo_sirvo_fisico/worlds/maze_aruco.world'
     pause = 'true'
     verbosity = '4'
-    use_sim_time = 'False'
+    use_sim_time = 'True'
 
-    
     robot_config_list = [
         {
             'name': '',
             'type': 'puzzlebot_jetson_lidar_ed',
             'x': 0.0, 'y': 0.0, 'yaw': 0.0,
-            'lidar_frame': 'laser',
+            'lidar_frame': 'laser_frame',
             'camera_frame': 'camera_link_optical',
             'tof_frame': 'tof_link'
         }
     ]
 
+    # -----------------------------------------------------------------------------
+    #                         LOAD GAZEBO WORLD
+    # -----------------------------------------------------------------------------
+
+    gazebo_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('servo_sirvo_fisico'),
+                'launch',
+                'gazebo_world_launch.py'
+            )
+        ),
+        launch_arguments={
+            'world': world,
+            'pause': pause,
+            'verbosity': verbosity,
+            'use_sim_time': use_sim_time
+        }.items()
+    )
 
     # -----------------------------------------------------------------------------
     #                       SPAWN EACH ROBOT DYNAMICALLY
@@ -44,7 +61,7 @@ def generate_launch_description():
         x = str(robot.get('x', 0.0))
         y = str(robot.get('y', 0.0))
         yaw = str(robot.get('yaw', 0.0))
-        lidar_frame = robot.get('lidar_frame', 'laser')
+        lidar_frame = robot.get('lidar_frame', 'laser_frame')
         camera_frame = robot.get('camera_frame', 'camera_link_optical')
         tof_frame = robot.get('tof_frame', 'tof_link')
         prefix = f'{robot_name}/' if robot_name != '' else ''
@@ -55,7 +72,7 @@ def generate_launch_description():
                     get_package_share_directory('servo_sirvo_fisico'),
                     'launch',
                     'gazebo_puzzlebot_launch.py'
-                )   
+                )
             ),
             launch_arguments={
                 'robot': robot_type,
@@ -71,20 +88,9 @@ def generate_launch_description():
             }.items()
         )
 
-        puzzle_launch = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('servo_sirvo_fisico'),
-                    'launch',
-                    'puzzlebot_sim_launch.py'
-                )
-            ),
-            launch_arguments={
-                'use_sim_time': use_sim_time
-            }.items()
-        )
+       
+        robot_launches.append(robot_launch)
 
-        robot_launches.append(puzzle_launch)
 
     # -----------------------------------------------------------------------------
     #                          LOAD NAVIGATION CONFIGURATION
@@ -94,23 +100,7 @@ def generate_launch_description():
     # and the nav2_params.yaml file in the param folder
     # You can change the map name and path as needed
 
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
-    # Cambiar la ruta de mapa y param según sea necesario en tu sistema
-    # Asegúrate de tener el archivo map.yaml en la ruta correcta y param.yaml en la carpeta param
-    map_dir = os.path.join('/home/alfredog/ros2_ws/src/servo_sirvo_fisico/mapa_new2.yaml')
-    param_file = os.path.join('/home/alfredog/ros2_ws/src/servo_sirvo_fisico/param/puzzlebot.yaml')  # asegúrate de tener ese archivo
-
-    nav2_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('nav2_bringup'), 'launch', 'bringup_launch.py')
-        ),
-        launch_arguments={
-            'map': map_dir,
-            'use_sim_time': use_sim_time,
-            'params_file': param_file
-        }.items()
-    )
-
+  
 
     # -----------------------------------------------------------------------------
     #                          BUILD FINAL LAUNCH DESCRIPTION
@@ -118,8 +108,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1'),
-        SetEnvironmentVariable('USE_SIM_TIME', 'False'),
-        nav2_launch,
-        #robot_launch,
+        SetEnvironmentVariable('USE_SIM_TIME', 'True'),
+        gazebo_launch,
         *robot_launches,
     ])

@@ -33,21 +33,22 @@ def generate_launch_description():
     gazebo_verbosity = LaunchConfiguration('verbosity')
 
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
-    gazebo_resources = get_package_share_directory('ServoYSirvo_nav2_puzzlebot')
+    gazebo_resources = get_package_share_directory('servo_sirvo_fisico')
 
     world_path = PathJoinSubstitution([gazebo_resources, 'worlds', world_file])
     gazebo_models_path = os.path.join(gazebo_resources, 'models')
     gazebo_plugins_path = os.path.join(gazebo_resources, 'plugins')
     gazebo_media_path = os.path.join(gazebo_models_path, 'models', 'media', 'materials')
 
+    # Set Gazebo environment variables
     set_gazebo_resources = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
-        value=f"{gazebo_models_path}:{gazebo_media_path}"
+        value=os.path.join(get_package_share_directory('servo_sirvo_fisico'), 'models')
     )
 
     set_gazebo_plugins = SetEnvironmentVariable(
         name='GZ_SIM_SYSTEM_PLUGIN_PATH',
-        value=f"{gazebo_plugins_path}"
+        value=os.path.join(get_package_share_directory('servo_sirvo_fisico'), 'plugins')
     )
 
     # ✅ GLOBAL ROS TIME SIMULATION ENABLED

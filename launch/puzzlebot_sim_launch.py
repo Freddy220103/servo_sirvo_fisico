@@ -11,27 +11,27 @@ def generate_launch_description():
 
     use_sim_time_param = {'use_sim_time': False}
 
-    robot_xacro_filename = 'puzzlebot.xacro'
+    # robot_xacro_filename = 'puzzlebot.xacro'
 
-    package_share_dir = get_package_share_directory('servo_sirvo_fisico')
+    # package_share_dir = get_package_share_directory('servo_sirvo_fisico')
 
-    # Get path to the package where robot models are stored
-    robot_path = os.path.join(package_share_dir, 'urdf', robot_xacro_filename)
+    # # Get path to the package where robot models are stored
+    # robot_path = os.path.join(package_share_dir, 'urdf', robot_xacro_filename)
 
-    # Generate robot_description dynamically by calling xacro with the selected parameters
-    robot_description = Command(['xacro ', str(robot_path),
-                                ' camera_frame:=', 'camera_link_optical',
-                                ' lidar_frame:=', 'laser',
-                                ' tof_frame:=', 'tof_link'])
+    # # Generate robot_description dynamically by calling xacro with the selected parameters
+    # robot_description = Command(['xacro ', str(robot_path),
+    #                             ' camera_frame:=', 'camera_link_optical',
+    #                             ' lidar_frame:=', 'laser',
+    #                             ' tof_frame:=', 'tof_link'])
 
-    # Node that publishes TF and joint states from robot_description
-    robot_state_publisher_node = Node(package="robot_state_publisher",
-                                        executable="robot_state_publisher",
-                                        output="screen",
-                                        parameters=[{
-                                            "robot_description": ParameterValue(robot_description, value_type=str),
-                                            "use_sim_time": use_sim_time_param,
-                                        }],)
+    # # Node that publishes TF and joint states from robot_description
+    # robot_state_publisher_node = Node(package="robot_state_publisher",
+    #                                     executable="robot_state_publisher",
+    #                                     output="screen",
+    #                                     parameters=[{
+    #                                         "robot_description": ParameterValue(robot_description, value_type=str),
+    #                                         "use_sim_time": use_sim_time_param,
+    #                                     }],)
     
     
 
@@ -42,11 +42,11 @@ def generate_launch_description():
         parameters=[use_sim_time_param]
     )
 
-    joint_pub = Node(
-        package='servo_sirvo_fisico',
-        executable='joint_state_pub',
-        parameters=[use_sim_time_param]
-    )
+    # joint_pub = Node(
+    #     package='servo_sirvo_fisico',
+    #     executable='joint_state_pub',
+    #     parameters=[use_sim_time_param]
+    # )
 
     kinematic = Node(
         package='servo_sirvo_fisico',
@@ -61,7 +61,7 @@ def generate_launch_description():
         parameters=[use_sim_time_param]
     )
 
-    static_tf = Node(
+    static_tf_1 = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
@@ -74,11 +74,11 @@ def generate_launch_description():
 
     return LaunchDescription([
    
-        static_tf,
+        static_tf_1,
         my_rqt_node,
         localisation,
         kinematic,
-
-        robot_state_publisher_node,#comentar y llamar launch gazebo en caso de simulación
+        #joint_pub,
+        #robot_state_publisher_node,#comentar y llamar launch gazebo en caso de simulación
         
     ])
